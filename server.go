@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	clientID     = os.Getenv("GOOGLE_OAUTH2_CLIENT_ID")
-	clientSecret = os.Getenv("GOOGLE_OAUTH2_CLIENT_SECRET")
+	clientID     = os.Getenv("ONESPHERE_CLIENT_ID")
+	clientSecret = os.Getenv("ONESPHERE_CLIENT_SECRET")
+	issuer       = os.Getenv("OIDC_ISSUER")
 )
 
 type Authenticator struct {
@@ -25,7 +26,7 @@ type Authenticator struct {
 
 func newAuthenticator() (*Authenticator, error) {
 	ctx := context.Background()
-	provider, err := oidc.NewProvider(ctx, "https://accounts.google.com")
+	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
 		log.Fatalf("failed to get provider: %v", err)
 	}
@@ -34,7 +35,7 @@ func newAuthenticator() (*Authenticator, error) {
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  "http://127.0.0.1:5556/auth/google/callback",
+		RedirectURL:  "http://127.0.0.1:9999/callback",
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 
@@ -66,6 +67,7 @@ func (a *Authenticator) handleCallback(w http.ResponseWriter, r *http.Request) {
 		ClientID: clientID,
 	}
 
+	/*Token Validation example*/
 	idToken, err := a.provider.Verifier(oidcConfig).Verify(a.ctx, rawIDToken)
 	if err != nil {
 		http.Error(w, "Failed to verify ID Token: "+err.Error(), http.StatusInternalServerError)
@@ -98,7 +100,7 @@ func main() {
 		http.Redirect(w, r, auther.clientConfig.AuthCodeURL("state"), http.StatusFound)
 	})
 
-	mux.HandleFunc("/auth/google/callback", auther.handleCallback)
+	mux.HandleFunc("/callback", auther.handleCallback)
 
-	log.Fatal(http.ListenAndServe("127.0.0.1:5556", mux))
+	log.Fatal(http.ListenAndServe("127.0.0.1:9999", mux))
 }
